@@ -11,6 +11,11 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+
+    QSTASH_URL: z.string().url(),
+    QSTASH_TOKEN: z.string(),
+
+    OPENAI_API_KEY: z.string(),
   },
 
   /**
@@ -20,6 +25,40 @@ export const env = createEnv({
    */
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
+
+    // App
+    NEXT_PUBLIC_APP_URL: z
+      .preprocess((str) => str ?? process.env.VERCEL_URL, z.string())
+      .transform((val) => {
+        if (val?.includes("vercel") && !val?.startsWith("https://")) {
+          val = "https://" + val;
+        }
+
+        return val;
+      })
+      .pipe(z.string().url()),
+
+    NEXT_PUBLIC_VERCEL_URL: z
+      .preprocess((str) => process.env.VERCEL_URL ?? str, z.string().optional())
+      .transform((val) => {
+        if (val?.includes("vercel") && !val?.startsWith("https://")) {
+          val = "https://" + val;
+        }
+        return val;
+      })
+      .pipe(z.string().url().optional()),
+
+    NEXT_PUBLIC_LOCAL_TUNNEL_URL: z.string().url().optional(),
+
+    NEXT_PUBLIC_NODE_ENV: z
+      .string()
+      .optional()
+      .transform((val) => val ?? process.env.NODE_ENV)
+      .pipe(z.enum(["development", "test", "production"]).optional()),
+
+    NEXT_PUBLIC_VERCEL_ENV: z
+      .enum(["development", "preview", "production"])
+      .optional(),
   },
 
   /**
@@ -28,8 +67,19 @@ export const env = createEnv({
    */
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
+    NEXT_PUBLIC_NODE_ENV: process.env.NEXT_PUBLIC_NODE_ENV,
     NODE_ENV: process.env.NODE_ENV,
+
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    QSTASH_URL: process.env.QSTASH_URL,
+    QSTASH_TOKEN: process.env.QSTASH_TOKEN,
+
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+
+    NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL,
+    NEXT_PUBLIC_LOCAL_TUNNEL_URL: process.env.NEXT_PUBLIC_LOCAL_TUNNEL_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
