@@ -49,7 +49,7 @@ This repo contains ready-to-go UI blocks that are already stitched together with
 
 ## Concepts
 
-### [1. Workflows](./src/app/api/workflows/README.md)
+### [1. Workflows](./src/app/api/workflows)
 
 A workflow is a collection of APIs that run in a sequence to accomplish a given task. A workflow consists of a series of steps, where each step is an abstraction over a single API call.
 
