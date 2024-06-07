@@ -41,7 +41,7 @@ interface Step<I> {
   finally: (
     action: (
       prevResult: CommonResponse<I>,
-    ) => StepOutput<void> | Promise<StepOutput<void>>,
+    ) => StepOutput<unknown> | Promise<StepOutput<unknown>>,
   ) => unknown;
 }
 
@@ -72,7 +72,7 @@ export class Workflow {
       finally: (
         action: <I>(
           prevResult: CommonResponse<I>,
-        ) => StepOutput<void> | Promise<StepOutput<void>>,
+        ) => StepOutput<unknown> | Promise<StepOutput<unknown>>,
       ) => {
         this.steps.push(action);
       },
