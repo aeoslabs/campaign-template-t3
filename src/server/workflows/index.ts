@@ -26,19 +26,22 @@ type CommonResponse<I> = (SuccessResponse<I> | ErrorResponse) & {
   continue?: boolean;
   req: NextRequest;
 };
-type StepOutput<O> = Promise<
-  O & {
-    OPTIONS?: {
-      shouldContinue?: boolean;
-    };
-  }
->;
+type StepOutput<O> = O & {
+  OPTIONS?: {
+    shouldContinue?: boolean;
+  };
+};
+
 interface Step<I> {
   create: <O>(
-    action: (prevResult: CommonResponse<I>) => StepOutput<O>,
+    action: (
+      prevResult: CommonResponse<I>,
+    ) => StepOutput<O> | Promise<StepOutput<O>>,
   ) => Step<O>;
   finally: (
-    action: (prevResult: CommonResponse<I>) => StepOutput<void>,
+    action: (
+      prevResult: CommonResponse<I>,
+    ) => StepOutput<void> | Promise<StepOutput<void>>,
   ) => unknown;
 }
 
@@ -51,19 +54,25 @@ type StepResponse = {
 export class Workflow {
   client = new Client({ token: env.QSTASH_TOKEN });
 
-  steps: (<I>(prevResult: CommonResponse<I>) => StepOutput<unknown>)[] = [];
+  steps: (<I>(
+    prevResult: CommonResponse<I>,
+  ) => StepOutput<unknown> | Promise<StepOutput<unknown>>)[] = [];
 
   createWorkflow = (setupStep: (step: Step<unknown>) => void) => {
     const step: Step<unknown> = {
       create: <O>(
-        action: <I>(prevResult: CommonResponse<I>) => StepOutput<O>,
+        action: <I>(
+          prevResult: CommonResponse<I>,
+        ) => StepOutput<O> | Promise<StepOutput<O>>,
       ) => {
         this.steps.push(action);
         return step as Step<O>;
       },
 
       finally: (
-        action: <I>(prevResult: CommonResponse<I>) => StepOutput<void>,
+        action: <I>(
+          prevResult: CommonResponse<I>,
+        ) => StepOutput<void> | Promise<StepOutput<void>>,
       ) => {
         this.steps.push(action);
       },
@@ -98,7 +107,7 @@ export class Workflow {
       const action = this.steps[Number(step)]!;
 
       try {
-        const jsonData = await action({
+        const jsonData = action({
           data: body,
           req,
           error: null,
