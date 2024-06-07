@@ -104,21 +104,15 @@ export const { POST } = workflow.createWorkflow((step) => {
       };
     })
 
-    .create(({ data, error, req }) => {
-      if (error) {
-        return;
-      }
+    .create(async ({ req }) => {
+      const generationId = req.headers.get("generationId");
+      if (!generationId) throw new Error("Generation ID is not provided!");
 
-      console.log(
-        `step ${data.stepNumber + 1} finished at ${new Date(data.finishedAt).toISOString()}`,
-      );
+      const existingGeneration = await db.query.aiGenerations.findFirst({
+        where: (g, { eq }) => eq(g.id, generationId),
+      });
 
-      console.log(`Request made by ${req.headers.get("user-agent")}`);
-
-      return {
-        stepNumber: data.stepNumber + 1,
-        finishedAt: new Date().getTime(),
-      };
+      return {};
     })
 
     .finally(() => {

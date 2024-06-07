@@ -23,7 +23,7 @@ type ErrorResponse = {
 };
 
 type CommonResponse<I> = (SuccessResponse<I> | ErrorResponse) & {
-  continue?: boolean;
+  shouldContinue?: boolean;
   req: NextRequest;
 };
 type StepOutput<O> = O & {
@@ -34,14 +34,10 @@ type StepOutput<O> = O & {
 
 interface Step<I> {
   create: <O>(
-    action: (
-      prevResult: CommonResponse<I>,
-    ) => StepOutput<O> | Promise<StepOutput<O>>,
+    action: (prevResult: CommonResponse<I>) => StepOutput<O>,
   ) => Step<O>;
   finally: (
-    action: (
-      prevResult: CommonResponse<I>,
-    ) => StepOutput<unknown> | Promise<StepOutput<unknown>>,
+    action: (prevResult: CommonResponse<I>) => StepOutput<unknown>,
   ) => unknown;
 }
 
@@ -61,18 +57,14 @@ export class Workflow {
   createWorkflow = (setupStep: (step: Step<unknown>) => void) => {
     const step: Step<unknown> = {
       create: <O>(
-        action: <I>(
-          prevResult: CommonResponse<I>,
-        ) => StepOutput<O> | Promise<StepOutput<O>>,
+        action: <I>(prevResult: CommonResponse<I>) => StepOutput<O>,
       ) => {
         this.steps.push(action);
         return step as Step<O>;
       },
 
       finally: (
-        action: <I>(
-          prevResult: CommonResponse<I>,
-        ) => StepOutput<unknown> | Promise<StepOutput<unknown>>,
+        action: <I>(prevResult: CommonResponse<I>) => StepOutput<unknown>,
       ) => {
         this.steps.push(action);
       },
@@ -111,7 +103,7 @@ export class Workflow {
           data: body,
           req,
           error: null,
-          continue: false,
+          shouldContinue: false,
         });
 
         // call next step with function output
