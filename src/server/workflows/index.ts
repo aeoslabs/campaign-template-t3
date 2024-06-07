@@ -12,28 +12,57 @@ const domain =
 
 const baseUrl = new URL(domain).toString();
 
+type SuccessResponse<I> = {
+  data: Awaited<I>;
+  error: null | undefined;
+};
+
+type ErrorResponse = {
+  error: unknown;
+  data: null | undefined;
+};
+
+type CommonResponse<I> = (SuccessResponse<I> | ErrorResponse) & {
+  continue?: boolean;
+  req: NextRequest;
+};
+type StepOutput<O> = O & {
+  OPTIONS: {
+    shouldContinue?: boolean;
+  };
+};
 interface Step<I> {
   create: <O>(
-    action: (prevResult: Awaited<I>, req: NextRequest) => O,
+    action: (prevResult: CommonResponse<I>) => StepOutput<O>,
   ) => Step<O>;
   finally: (
-    action: (prevResult: Awaited<I>, req: NextRequest) => void,
+    action: (prevResult: CommonResponse<I>) => StepOutput<void>,
   ) => unknown;
 }
+
+type StepResponse = {
+  data?: Record<string, unknown>;
+  error?: string;
+  continue?: boolean;
+};
 
 export class Workflow {
   client = new Client({ token: env.QSTASH_TOKEN });
 
-  steps: (<I>(prevResult: I, req: NextRequest) => unknown)[] = [];
+  steps: (<I>(
+    prevResult: CommonResponse<I>,
+  ) => StepOutput<Record<string, unknown>>)[] = [];
 
   createWorkflow = (setupStep: (step: Step<unknown>) => void) => {
     const step: Step<unknown> = {
-      create: <O>(action: <I>(prevResult: I, req: NextRequest) => O) => {
+      create: <O>(
+        action: <I>(prevResult: CommonResponse<I>) => StepOutput<O>,
+      ) => {
         this.steps.push(action);
         return step as Step<O>;
       },
 
-      finally: (action: <I>(prevResult: I, req: NextRequest) => unknown) => {
+      finally: (action: <I>(prevResult: CommonResponse<I>) => void) => {
         this.steps.push(action);
       },
     };
@@ -46,10 +75,8 @@ export class Workflow {
       const { searchParams } = new URL(req.url);
       const step = searchParams.get("step");
 
-      const contentType = req.headers.get("content-type");
-
-      if (contentType !== "application/json") {
-        return new Response("Missing JSON request body or correct headers.", {
+      if (req.headers.get("content-type") !== "application/json") {
+        return new Response("Missing JSON body or correct headers.", {
           status: 405,
         });
       }
@@ -69,17 +96,19 @@ export class Workflow {
       const action = this.steps[Number(step)]!;
 
       try {
-        const res = await action(body, req);
+        const jsonData = await action({
+          data: body,
+          req,
+          error: null,
+          continue: false,
+        });
 
         // call next step with function output
         if (Number(step) < this.steps.length - 1) {
-          await this.client.publish({
+          await this.client.publishJSON({
             url: `${baseUrl}${pathname}?step=${Number(step) + 1}`,
             method: "POST",
-            headers: {
-              "content-type": "application/json",
-            },
-            body: JSON.stringify(res),
+            body: jsonData,
           });
         }
 
