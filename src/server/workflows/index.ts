@@ -26,11 +26,13 @@ type CommonResponse<I> = (SuccessResponse<I> | ErrorResponse) & {
   continue?: boolean;
   req: NextRequest;
 };
-type StepOutput<O> = O & {
-  OPTIONS: {
-    shouldContinue?: boolean;
-  };
-};
+type StepOutput<O> = Promise<
+  O & {
+    OPTIONS?: {
+      shouldContinue?: boolean;
+    };
+  }
+>;
 interface Step<I> {
   create: <O>(
     action: (prevResult: CommonResponse<I>) => StepOutput<O>,
@@ -49,9 +51,7 @@ type StepResponse = {
 export class Workflow {
   client = new Client({ token: env.QSTASH_TOKEN });
 
-  steps: (<I>(
-    prevResult: CommonResponse<I>,
-  ) => StepOutput<Record<string, unknown>>)[] = [];
+  steps: (<I>(prevResult: CommonResponse<I>) => StepOutput<unknown>)[] = [];
 
   createWorkflow = (setupStep: (step: Step<unknown>) => void) => {
     const step: Step<unknown> = {
@@ -62,7 +62,9 @@ export class Workflow {
         return step as Step<O>;
       },
 
-      finally: (action: <I>(prevResult: CommonResponse<I>) => void) => {
+      finally: (
+        action: <I>(prevResult: CommonResponse<I>) => StepOutput<void>,
+      ) => {
         this.steps.push(action);
       },
     };
